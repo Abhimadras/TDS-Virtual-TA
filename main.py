@@ -60,28 +60,30 @@ async def root():
 def find_relevant_links(question: str) -> List[Link]:
     """Find matching forum topics with multiple matching strategies"""
     relevant = []
-    if not forum_data:
+    if not forum_data or 'discourse_posts' not in forum_data:
         return relevant
 
     question_lower = question.lower()
     question_keywords = set(re.findall(r'\w+', question_lower))
 
-    for topic in forum_data:
-        try:
-            # Extract topic info
-            title = topic.get('title', '').lower()
-            url = topic.get('url', '')
-            posts = topic.get('posts', [])
-            
-            # Skip if missing critical data
-            if not title or not url:
-                continue
+    # Group posts by topic first
+    topics = {}
+    for post in forum_data['discourse_posts']:
+        topic_title = post.get('topic_title', '').lower()
+        if topic_title not in topics:
+            topics[topic_title] = {
+                'url': post['url'],
+                'posts': []
+            }
+        topics[topic_title]['posts'].append(post)
 
+    for topic_title, topic_data in topics.items():
+        try:
             # Strategy 1: Title matching
-            title_score = fuzz.partial_ratio(question_lower, title)
+            title_score = fuzz.partial_ratio(question_lower, topic_title)
             
             # Strategy 2: Content matching from all posts
-            all_content = " ".join(p.get('content', '').lower() for p in posts)
+            all_content = " ".join(p.get('content', '').lower() for p in topic_data['posts'])
             content_score = fuzz.partial_ratio(question_lower, all_content)
             
             # Strategy 3: Keyword matching
@@ -90,10 +92,10 @@ def find_relevant_links(question: str) -> List[Link]:
 
             # Special case for GA5
             is_ga5_question = "ga5" in question_lower
-            has_ga5_content = "ga5" in title or "ga5" in all_content
+            has_ga5_content = "ga5" in topic_title or "ga5" in all_content
 
             # Debug logging
-            logger.debug(f"Checking topic: {title[:50]}... | "
+            logger.debug(f"Checking topic: {topic_title[:50]}... | "
                         f"Title score: {title_score} | "
                         f"Content score: {content_score} | "
                         f"Keywords: {keyword_overlap} | "
@@ -108,19 +110,22 @@ def find_relevant_links(question: str) -> List[Link]:
                 # Find the most relevant post number
                 best_post = None
                 best_score = 0
-                for post in posts:
+                for post in topic_data['posts']:
                     post_score = fuzz.partial_ratio(question_lower, post.get('content', '').lower())
                     if post_score > best_score:
                         best_score = post_score
-                        best_post = post.get('post_number', 1)
+                        best_post = post
 
-                link_text = topic['title']
+                link_text = topic_title[:100]  # Truncate if needed
                 if best_post and best_score > 70:
-                    link_text += f" (see post #{best_post})"
+                    # Extract post number from URL if available
+                    post_num = best_post.get('url', '').split('/')[-1]
+                    if post_num.isdigit():
+                        link_text += f" (see post #{post_num})"
                 
                 relevant.append(Link(
-                    url=url,
-                    text=link_text[:100]  # Truncate if needed
+                    url=topic_data['url'],
+                    text=link_text
                 ))
 
                 if len(relevant) >= 3:
@@ -171,8 +176,9 @@ async def answer_question(request: QuestionRequest):
 1. Today's date is {datetime.now().strftime('%Y-%m-%d')}
 2. Answer based ONLY on course content and forum discussions
 3. NEVER invent URLs - only use provided links
-4. When forum links exist, you MUST include them
-5. For GA5 questions, specify to use gpt-3.5-turbo-0125"""
+4. When forum links exist, you MUST include them and reference them in your answer
+5. For GA5 questions, specify to use gpt-3.5-turbo-0125
+6. Always be helpful and supportive in your responses"""
 
     # Build user prompt with links if available
     user_prompt = request.question
