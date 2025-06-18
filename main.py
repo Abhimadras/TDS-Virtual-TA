@@ -8,12 +8,22 @@ from fuzzywuzzy import fuzz
 import re
 import logging
 from datetime import datetime
+from fastapi.middleware.cors import CORSMiddleware
 
 # Setup logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 app = FastAPI()
+
+# Add CORS middleware
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # Allows all origins for development
+    allow_credentials=True,
+    allow_methods=["*"],  # Allows all methods
+    allow_headers=["*"],  # Allows all headers
+)
 
 # Load data
 try:
@@ -35,6 +45,17 @@ class Link(BaseModel):
 class AnswerResponse(BaseModel):
     answer: str
     links: List[Link]
+
+@app.get("/")
+async def root():
+    return {
+        "message": "TDS Virtual TA API is running",
+        "endpoints": {
+            "ask_question": "POST /api/",
+            "debug": "GET /debug_match",
+            "docs": "GET /docs or /redoc"
+        }
+    }
 
 def find_relevant_links(question: str) -> List[Link]:
     """Find matching forum topics with multiple matching strategies"""
