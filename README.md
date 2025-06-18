@@ -32,7 +32,7 @@ Request format:
 
 
 Example response:
-json
+```json
 {
   "answer": "The detailed answer to your question...",
   "links": [
@@ -42,7 +42,7 @@ json
     }
   ]
 }
-
+```
 
 ### Testing with curl
 
