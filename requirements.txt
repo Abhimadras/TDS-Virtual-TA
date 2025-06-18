@@ -5,3 +5,5 @@ requests
 beautifulsoup4
 groq
 pydantic
+fuzzywuzzy
+python-Levenshtein
