@@ -1,8 +1,8 @@
 # TDS-Virtual-TA
 
-Here's a comprehensive `README.md` file for your TDS Virtual TA project:
 
-```markdown
+
+
 # TDS Virtual Teaching Assistant
 
 ![FastAPI](https://img.shields.io/badge/FastAPI-005571?style=for-the-badge&logo=fastapi)
@@ -43,7 +43,6 @@ Example response:
     }
   ]
 }
-```
 
 ### Other Endpoints
 - `GET /` - API status and documentation
